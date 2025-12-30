@@ -27,7 +27,7 @@ const config = loadConfig();
 
 const server = new McpServer({
   name: "systemd-mcp",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 // ============================================================================
@@ -366,6 +366,50 @@ server.tool(
 
       return {
         content: [{ type: "text", text: JSON.stringify({ unit: unitName, ...result }, null, 2) }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error instanceof Error ? error.message : "Unknown"}` }],
+      };
+    }
+  }
+);
+
+server.tool(
+  "systemd_cat_unit",
+  "View unit file contents (systemctl cat)",
+  {
+    unit: z.string().describe("Unit name to view"),
+  },
+  async ({ unit }) => {
+    if (!checkPermission(config, "read")) {
+      return { content: [{ type: "text", text: "Permission denied: read access not enabled" }] };
+    }
+
+    const unitName = unit.includes(".") ? unit : `${unit}.service`;
+
+    if (!checkUnitAccess(config, unitName)) {
+      return { content: [{ type: "text", text: `Permission denied: ${unitName} is blacklisted` }] };
+    }
+
+    try {
+      const { stdout } = await runCommand(`systemctl cat ${unitName} --no-pager`);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                unit: unitName,
+                content: stdout.trim(),
+                lines: stdout.trim().split("\n").length,
+              },
+              null,
+              2
+            ),
+          },
+        ],
       };
     } catch (error) {
       return {

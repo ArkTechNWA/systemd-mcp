@@ -2,8 +2,6 @@
 
 ## v0.1.1 - Alpha Release ✓
 
-All core functionality complete:
-
 - [x] MCP server with stdio transport
 - [x] Config file loading
 - [x] Permission system (read/restart/start_stop/enable_disable/daemon_reload)
@@ -14,15 +12,6 @@ All core functionality complete:
 - [x] CI workflow
 - [x] Fixed parsing bugs (failed_units, timers)
 
-### 16 Tools Implemented
-
-| Category | Tools |
-|----------|-------|
-| Status | `list_units`, `unit_status`, `failed_units`, `timers`, `dependencies` |
-| Journal | `journal_query`, `journal_tail`, `boot_log` |
-| Actions | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `daemon_reload` |
-| Analysis | `analyze_boot`, `diagnose` |
-
 ---
 
 ## v0.2.0 - SSH Support ✓
@@ -32,36 +21,30 @@ All core functionality complete:
 - [x] Config file `ssh.host` option
 - [x] Commands wrapped with `ssh <host> '<cmd>'` when enabled
 
-### Usage
+---
 
-```bash
-# Via environment variable
-SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
+## v0.3.0 - Multi-Instance & Unit Files (current)
 
-# Via config file (~/.config/systemd-mcp/config.json)
-{
-  "ssh": {
-    "enabled": true,
-    "host": "vps-claude"
-  }
-}
-```
+- [ ] Multi-instance documentation (local + remote monitoring)
+- [ ] `systemd_cat_unit` tool - view unit file contents
 
 ---
 
-## Future
+## v0.4.0 - Streaming & Trends
 
-### v0.3.0 - Enhancements
 - [ ] Live log streaming (follow mode)
-- [ ] Unit file viewing
 - [ ] Resource usage trends
 - [ ] Circuit breaker improvements
 
-### v1.0.0 - Production
+---
+
+## v1.0.0 - Production
+
 - [ ] D-Bus integration (richer data, no subprocess spawning)
+- [ ] Unit file viewing
 - [ ] Test suite
 - [ ] npm publish (if demand exists)
 
 ---
 
-**Status:** v0.2.0 with SSH support, CI passing, ready for use.
+**Status:** v0.2.0 released, working on v0.3.0

@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Alpha (v0.2.0)
+**Status:** Alpha (v0.3.0)
 
 **Author:** Claude + MOD
 
@@ -176,10 +176,47 @@ SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
 ### Claude Code Integration with SSH
 
 ```bash
-# Monitor remote VPS
-claude mcp add --transport stdio systemd-vps -- \
-  bash -c "SYSTEMD_MCP_SSH_HOST=vps-claude node /path/to/build/index.js"
+# Monitor remote server
+claude mcp add --transport stdio systemd-ssh -- \
+  bash -c "SYSTEMD_MCP_SSH_HOST=my-server node /path/to/build/index.js"
 ```
+
+---
+
+## Multi-Instance Pattern (v0.3.0)
+
+Run multiple instances to monitor both local and remote systems simultaneously.
+
+### Setup
+
+```bash
+# Local instance (default)
+claude mcp add --transport stdio systemd -s user -- \
+  node /path/to/build/index.js
+
+# Remote instance via SSH
+claude mcp add --transport stdio systemd-ssh -s user -- \
+  bash -c "SYSTEMD_MCP_SSH_HOST=my-server node /path/to/build/index.js"
+```
+
+### Result
+
+Claude Code sees both as separate tool namespaces:
+
+| MCP Name | Tools | Target |
+|----------|-------|--------|
+| `systemd` | `mcp__systemd__*` | Local machine |
+| `systemd-ssh` | `mcp__systemd-ssh__*` | Remote via SSH |
+
+Query both in parallel:
+
+```
+"Check nginx status on both local and remote"
+→ mcp__systemd__systemd_unit_status({ units: "nginx" })
+→ mcp__systemd-ssh__systemd_unit_status({ units: "nginx" })
+```
+
+Same codebase, multiple targets, unified visibility.
 
 ---
 
@@ -280,6 +317,24 @@ systemd_dependencies({
   unit: string,
   direction?: "requires" | "wanted_by" | "both"
 })
+```
+
+#### `systemd_cat_unit`
+View unit file contents (v0.3.0).
+
+```typescript
+systemd_cat_unit({
+  unit: string  // e.g., "nginx" or "nginx.service"
+})
+```
+
+Returns:
+```json
+{
+  "unit": "nginx.service",
+  "content": "# /usr/lib/systemd/system/nginx.service\n[Unit]\nDescription=...",
+  "lines": 24
+}
 ```
 
 ### Journal/Logs
