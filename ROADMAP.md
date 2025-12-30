@@ -39,15 +39,35 @@
 
 ---
 
-## v0.5.0 - Persistent Metrics (planned)
+## v0.5.0 - NEVERHANG v2.0 + A.L.A.N. ✓
 
-- [ ] SQLite backend for metrics storage
-- [ ] Configurable retention period
-- [ ] Historical trend queries
+- [x] **A.L.A.N. database** (As Long As Necessary) - SQLite persistent state
+  - [x] Circuit breaker state survives restarts
+  - [x] Command history with latency tracking (7d retention)
+  - [x] Health check trends (24h retention)
+  - [x] P95 latency per command category
+  - [x] Auto-cleanup on startup
+- [x] **NEVERHANG v2.0**
+  - [x] Five-tier category timeouts (status/query/action/heavy/diagnostic)
+  - [x] Circuit breaker with half-open recovery
+  - [x] Health monitor with degradation detection
+  - [x] Adaptive timeout using historical P95
+  - [x] Failure taxonomy for intelligent error handling
+- [x] **`systemd_health` tool** - operational visibility endpoint
+- [x] Graceful shutdown handlers (SIGINT, SIGTERM)
+- [x] README rewrite with architecture philosophy
 
 ---
 
-## v0.6.0 - Cross-Host Metrics (planned)
+## v0.6.0 - Enhanced AI Hints (planned)
+
+- [ ] Richer tool descriptions for AI reasoning
+- [ ] Usage examples in tool metadata
+- [ ] Situational hints ("use this when...")
+
+---
+
+## v0.7.0 - Cross-Host Metrics (planned)
 
 - [ ] postgres-mcp integration option
 - [ ] Multi-host metrics aggregation
@@ -64,4 +84,4 @@
 
 ---
 
-**Status:** v0.4.1 released (resource monitoring + formatBytes fix)
+**Status:** v0.5.0 released (NEVERHANG v2.0 + A.L.A.N. database)
