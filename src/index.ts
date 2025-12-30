@@ -210,7 +210,8 @@ server.tool(
       const units = await Promise.all(
         lines.map(async (line) => {
           const parts = line.trim().split(/\s+/);
-          const unit = parts[0];
+          // First part is ● status marker, second is unit name
+          const unit = parts[0] === "●" ? parts[1] : parts[0];
 
           // Get last log line
           let lastLog = "";
@@ -223,9 +224,11 @@ server.tool(
             // Ignore
           }
 
+          // Description starts after: ● unit loaded failed failed
+          const descStart = parts[0] === "●" ? 5 : 4;
           return {
             unit,
-            description: parts.slice(4).join(" "),
+            description: parts.slice(descStart).join(" "),
             last_log: lastLog,
           };
         })
@@ -277,15 +280,26 @@ server.tool(
 
       const timers = lines
         .map((line) => {
+          // Format: NEXT (datetime) LEFT LAST (datetime) PASSED UNIT ACTIVATES
+          // Find .timer and .service by regex since column widths vary
+          const timerMatch = line.match(/(\S+\.timer)\s+(\S+\.service)/);
+          if (!timerMatch) return null;
+
+          const timer = timerMatch[1];
+          const service = timerMatch[2];
+
+          // Extract NEXT datetime (first 4 tokens: Day YYYY-MM-DD HH:MM:SS TZ)
           const parts = line.trim().split(/\s+/);
-          // Format: NEXT LEFT LAST PASSED UNIT ACTIVATES
-          return {
-            timer: parts[4],
-            service: parts[5],
-            next_run: parts[0] + " " + parts[1],
-            last_run: parts[2] + " " + parts[3],
-          };
+          const nextRun = parts.slice(0, 4).join(" ");
+
+          // Find LAST datetime - look for pattern after LEFT column
+          // LAST appears after a variable-width LEFT column
+          const lastMatch = line.match(/\s(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\w+)/);
+          const lastRun = lastMatch ? `${lastMatch[1]} ${lastMatch[2]}` : "n/a";
+
+          return { timer, service, next_run: nextRun, last_run: lastRun };
         })
+        .filter((t): t is NonNullable<typeof t> => t !== null)
         .filter((t) => !pattern || t.timer.includes(pattern));
 
       return {
