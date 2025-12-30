@@ -27,7 +27,7 @@ const config = loadConfig();
 
 const server = new McpServer({
   name: "systemd-mcp",
-  version: "0.3.0",
+  version: "0.4.0",
 });
 
 // ============================================================================
@@ -404,6 +404,220 @@ server.tool(
                 unit: unitName,
                 content: stdout.trim(),
                 lines: stdout.trim().split("\n").length,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error instanceof Error ? error.message : "Unknown"}` }],
+      };
+    }
+  }
+);
+
+// ============================================================================
+// TOOLS: Resource Monitoring (v0.4.0)
+// ============================================================================
+
+const RESOURCE_PROPERTIES = [
+  "MemoryCurrent",
+  "MemoryPeak",
+  "CPUUsageNSec",
+  "TasksCurrent",
+  "IPIngressBytes",
+  "IPEgressBytes",
+  "IOReadBytes",
+  "IOWriteBytes",
+];
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+function formatNanoseconds(ns: number): string {
+  if (ns < 1000) return `${ns}ns`;
+  if (ns < 1000000) return `${(ns / 1000).toFixed(1)}µs`;
+  if (ns < 1000000000) return `${(ns / 1000000).toFixed(1)}ms`;
+  return `${(ns / 1000000000).toFixed(2)}s`;
+}
+
+async function getUnitResources(unitName: string): Promise<Record<string, number>> {
+  const props = RESOURCE_PROPERTIES.join(",");
+  const { stdout } = await runCommand(
+    `systemctl show ${unitName} --property=${props}`
+  );
+
+  const result: Record<string, number> = {};
+  for (const line of stdout.trim().split("\n")) {
+    const [key, value] = line.split("=");
+    if (key && value) {
+      // Handle [not set] or empty values
+      const numValue = value === "[not set]" || value === "" ? 0 : parseInt(value, 10);
+      result[key] = isNaN(numValue) ? 0 : numValue;
+    }
+  }
+  return result;
+}
+
+server.tool(
+  "systemd_unit_resources",
+  "Get current resource usage for a unit (memory, CPU, tasks, I/O)",
+  {
+    unit: z.string().describe("Unit name"),
+  },
+  async ({ unit }) => {
+    if (!checkPermission(config, "read")) {
+      return { content: [{ type: "text", text: "Permission denied: read access not enabled" }] };
+    }
+
+    const unitName = unit.includes(".") ? unit : `${unit}.service`;
+
+    if (!checkUnitAccess(config, unitName)) {
+      return { content: [{ type: "text", text: `Permission denied: ${unitName} is blacklisted` }] };
+    }
+
+    try {
+      const resources = await getUnitResources(unitName);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                unit: unitName,
+                memory: {
+                  current: resources.MemoryCurrent,
+                  current_human: formatBytes(resources.MemoryCurrent),
+                  peak: resources.MemoryPeak,
+                  peak_human: formatBytes(resources.MemoryPeak),
+                },
+                cpu: {
+                  total_ns: resources.CPUUsageNSec,
+                  total_human: formatNanoseconds(resources.CPUUsageNSec),
+                },
+                tasks: resources.TasksCurrent,
+                network: {
+                  ingress: resources.IPIngressBytes,
+                  ingress_human: formatBytes(resources.IPIngressBytes),
+                  egress: resources.IPEgressBytes,
+                  egress_human: formatBytes(resources.IPEgressBytes),
+                },
+                io: {
+                  read: resources.IOReadBytes,
+                  read_human: formatBytes(resources.IOReadBytes),
+                  write: resources.IOWriteBytes,
+                  write_human: formatBytes(resources.IOWriteBytes),
+                },
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error instanceof Error ? error.message : "Unknown"}` }],
+      };
+    }
+  }
+);
+
+server.tool(
+  "systemd_sample_resources",
+  "Sample resource usage over time and calculate trends",
+  {
+    unit: z.string().describe("Unit name"),
+    samples: z.number().min(2).max(10).default(5).describe("Number of samples (2-10)"),
+    interval_ms: z.number().min(100).max(5000).default(1000).describe("Interval between samples in ms"),
+  },
+  async ({ unit, samples = 5, interval_ms = 1000 }) => {
+    if (!checkPermission(config, "read")) {
+      return { content: [{ type: "text", text: "Permission denied: read access not enabled" }] };
+    }
+
+    const unitName = unit.includes(".") ? unit : `${unit}.service`;
+
+    if (!checkUnitAccess(config, unitName)) {
+      return { content: [{ type: "text", text: `Permission denied: ${unitName} is blacklisted` }] };
+    }
+
+    try {
+      const readings: Array<Record<string, number>> = [];
+
+      // Collect samples
+      for (let i = 0; i < samples; i++) {
+        readings.push(await getUnitResources(unitName));
+        if (i < samples - 1) {
+          await new Promise((resolve) => setTimeout(resolve, interval_ms));
+        }
+      }
+
+      const first = readings[0];
+      const last = readings[readings.length - 1];
+      const duration_ms = (samples - 1) * interval_ms;
+      const duration_s = duration_ms / 1000;
+
+      // Calculate deltas and rates
+      const cpuDelta = last.CPUUsageNSec - first.CPUUsageNSec;
+      const cpuPercent = (cpuDelta / (duration_ms * 1000000)) * 100; // ns to ms ratio
+
+      const memoryReadings = readings.map((r) => r.MemoryCurrent);
+      const memoryMin = Math.min(...memoryReadings);
+      const memoryMax = Math.max(...memoryReadings);
+      const memoryAvg = memoryReadings.reduce((a, b) => a + b, 0) / memoryReadings.length;
+
+      const ioReadRate = (last.IOReadBytes - first.IOReadBytes) / duration_s;
+      const ioWriteRate = (last.IOWriteBytes - first.IOWriteBytes) / duration_s;
+      const netInRate = (last.IPIngressBytes - first.IPIngressBytes) / duration_s;
+      const netOutRate = (last.IPEgressBytes - first.IPEgressBytes) / duration_s;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                unit: unitName,
+                sampling: {
+                  samples,
+                  interval_ms,
+                  duration_ms,
+                },
+                cpu: {
+                  delta_ns: cpuDelta,
+                  percent: parseFloat(cpuPercent.toFixed(2)),
+                },
+                memory: {
+                  min: memoryMin,
+                  min_human: formatBytes(memoryMin),
+                  max: memoryMax,
+                  max_human: formatBytes(memoryMax),
+                  avg: Math.round(memoryAvg),
+                  avg_human: formatBytes(memoryAvg),
+                  stable: memoryMax - memoryMin < memoryAvg * 0.05,
+                },
+                io: {
+                  read_rate: Math.round(ioReadRate),
+                  read_rate_human: `${formatBytes(ioReadRate)}/s`,
+                  write_rate: Math.round(ioWriteRate),
+                  write_rate_human: `${formatBytes(ioWriteRate)}/s`,
+                },
+                network: {
+                  ingress_rate: Math.round(netInRate),
+                  ingress_rate_human: `${formatBytes(netInRate)}/s`,
+                  egress_rate: Math.round(netOutRate),
+                  egress_rate_human: `${formatBytes(netOutRate)}/s`,
+                },
               },
               null,
               2

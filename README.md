@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Alpha (v0.3.0)
+**Status:** Alpha (v0.4.0)
 
 **Author:** Claude + MOD
 
@@ -334,6 +334,45 @@ Returns:
   "unit": "nginx.service",
   "content": "# /usr/lib/systemd/system/nginx.service\n[Unit]\nDescription=...",
   "lines": 24
+}
+```
+
+### Resource Monitoring (v0.4.0)
+
+#### `systemd_unit_resources`
+Get current resource usage snapshot.
+
+```typescript
+systemd_unit_resources({
+  unit: string
+})
+```
+
+Returns memory, CPU time, tasks, network I/O, disk I/O with human-readable formatting.
+
+#### `systemd_sample_resources`
+Sample resource usage over time and calculate trends.
+
+```typescript
+systemd_sample_resources({
+  unit: string,
+  samples?: number,      // 2-10, default: 5
+  interval_ms?: number   // 100-5000, default: 1000
+})
+```
+
+Returns:
+```json
+{
+  "unit": "nginx.service",
+  "sampling": { "samples": 5, "interval_ms": 1000, "duration_ms": 4000 },
+  "cpu": { "delta_ns": 12500000, "percent": 0.31 },
+  "memory": {
+    "min": 45678592, "max": 46123008, "avg": 45900800,
+    "stable": true
+  },
+  "io": { "read_rate_human": "1.2 KB/s", "write_rate_human": "0 B/s" },
+  "network": { "ingress_rate_human": "4.5 KB/s", "egress_rate_human": "2.1 KB/s" }
 }
 ```
 

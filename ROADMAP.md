@@ -23,28 +23,45 @@
 
 ---
 
-## v0.3.0 - Multi-Instance & Unit Files (current)
+## v0.3.0 - Multi-Instance & Unit Files ✓
 
-- [ ] Multi-instance documentation (local + remote monitoring)
-- [ ] `systemd_cat_unit` tool - view unit file contents
+- [x] Multi-instance documentation (local + remote monitoring)
+- [x] `systemd_cat_unit` tool - view unit file contents
 
 ---
 
-## v0.4.0 - Streaming & Trends
+## v0.4.0 - Resource Monitoring ✓
 
-- [ ] Live log streaming (follow mode)
-- [ ] Resource usage trends
-- [ ] Circuit breaker improvements
+- [x] `systemd_unit_resources` - point-in-time resource snapshot
+- [x] `systemd_sample_resources` - live sampling with trend calculation
+- [x] Human-readable formatting (bytes, nanoseconds)
+- [x] Memory stability detection
+
+---
+
+## v0.5.0 - Persistent Metrics (planned)
+
+- [ ] SQLite backend for metrics storage
+- [ ] Configurable retention period
+- [ ] Historical trend queries
+
+---
+
+## v0.6.0 - Cross-Host Metrics (planned)
+
+- [ ] postgres-mcp integration option
+- [ ] Multi-host metrics aggregation
+- [ ] Shared visibility across instances
 
 ---
 
 ## v1.0.0 - Production
 
+- [ ] Live log streaming (follow mode)
 - [ ] D-Bus integration (richer data, no subprocess spawning)
-- [ ] Unit file viewing
 - [ ] Test suite
 - [ ] npm publish (if demand exists)
 
 ---
 
-**Status:** v0.2.0 released, working on v0.3.0
+**Status:** v0.4.0 released with resource monitoring
