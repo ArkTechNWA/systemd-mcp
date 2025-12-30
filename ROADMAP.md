@@ -64,4 +64,4 @@
 
 ---
 
-**Status:** v0.4.0 released with resource monitoring
+**Status:** v0.4.1 released (resource monitoring + formatBytes fix)

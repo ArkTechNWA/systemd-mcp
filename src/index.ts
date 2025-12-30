@@ -27,7 +27,7 @@ const config = loadConfig();
 
 const server = new McpServer({
   name: "systemd-mcp",
-  version: "0.4.0",
+  version: "0.4.1",
 });
 
 // ============================================================================

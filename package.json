@@ -1,6 +1,6 @@
 {
   "name": "@arktechnwa/systemd-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP server for systemd integration - give your AI assistant eyes and hands on Linux services",
   "type": "module",
   "main": "build/index.js",

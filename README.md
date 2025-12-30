@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Alpha (v0.4.0)
+**Status:** Alpha (v0.4.1)
 
 **Author:** Claude + MOD
 
