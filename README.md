@@ -16,9 +16,21 @@ A Model Context Protocol (MCP) server for systemd integration. Give your AI assi
 
 ## Why?
 
-AI coding assistants are blind to your system's health. They can write code, but they can't see if nginx is crashed, can't tail your service logs, can't restart a stuck daemon.
+AI assistants are blind to your system. They can write code but can't see if nginx crashed, can't tail logs, can't restart a stuck daemon.
 
-systemd-mcp changes that. Safely.
+"Just give it shell access" — bad idea. Shell access is all-or-nothing. One hallucinated `rm -rf` or hung `systemctl` and you're in trouble. No guardrails, no visibility, no recovery.
+
+systemd-mcp is **an intelligent interface**, not a wrapper:
+
+| Problem | systemd-mcp Solution |
+|---------|---------------------|
+| Commands can hang forever | NEVERHANG v2.0 — tiered timeouts, circuit breaker |
+| No memory between calls | A.L.A.N. database — persistent state, learns your system |
+| Failures cascade | Circuit breaker opens, commands fail fast, auto-recovery |
+| AI has no operational intuition | Health trends, P95 latency, success rates — data it can reason about |
+| All-or-nothing permissions | Granular: read-only default, whitelist/blacklist, permission tiers |
+
+This is the difference between "run commands for me" and "understand my infrastructure."
 
 ---
 
