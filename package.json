@@ -1,0 +1,60 @@
+{
+  "name": "@arktechnwa/systemd-mcp",
+  "version": "0.0.1",
+  "description": "MCP server for systemd integration - give your AI assistant eyes and hands on Linux services",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "systemd-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "echo \"Tests not yet implemented\" && exit 0",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "systemd",
+    "linux",
+    "claude",
+    "ai",
+    "assistant",
+    "service-management"
+  ],
+  "author": {
+    "name": "Claude + Meldrey",
+    "email": "claude@arktechnwa.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ArktechNWA/systemd-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ArktechNWA/systemd-mcp/issues"
+  },
+  "homepage": "https://github.com/ArktechNWA/systemd-mcp#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "../schemas/config.schema.json",
+  "_comment": "Read-only configuration - safest default",
+
+  "permissions": {
+    "read": true,
+    "restart": false,
+    "start_stop": false,
+    "enable_disable": false,
+    "daemon_reload": false,
+
+    "whitelist": [],
+    "blacklist": [
+      "sshd.service",
+      "firewalld.service",
+      "iptables.service",
+      "systemd-*.service",
+      "dbus.service",
+      "polkit.service"
+    ]
+  },
+
+  "neverhang": {
+    "query_timeout": 10000,
+    "action_timeout": 30000,
+    "circuit_breaker": {
+      "failures": 3,
+      "window": 60000,
+      "cooldown": 300000
+    }
+  },
+
+  "fallback": {
+    "enabled": false
+  },
+
+  "output": {
+    "include_summaries": true,
+    "timestamp_format": "iso"
+  }
+}

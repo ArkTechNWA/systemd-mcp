@@ -1,0 +1,51 @@
+{
+  "$schema": "../schemas/config.schema.json",
+  "_comment": "Operator configuration - can manage specific services",
+
+  "permissions": {
+    "read": true,
+    "restart": true,
+    "start_stop": true,
+    "enable_disable": false,
+    "daemon_reload": false,
+
+    "whitelist": [
+      "nginx.service",
+      "postgresql.service",
+      "redis.service",
+      "myapp-*.service"
+    ],
+    "blacklist": [
+      "sshd.service",
+      "firewalld.service",
+      "iptables.service",
+      "systemd-*.service",
+      "dbus.service",
+      "polkit.service"
+    ]
+  },
+
+  "neverhang": {
+    "query_timeout": 10000,
+    "action_timeout": 30000,
+    "circuit_breaker": {
+      "failures": 3,
+      "window": 60000,
+      "cooldown": 300000
+    }
+  },
+
+  "fallback": {
+    "enabled": true,
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
+    "api_key_env": "SYSTEMD_MCP_FALLBACK_KEY",
+    "max_context_lines": 200,
+    "max_tokens": 500
+  },
+
+  "output": {
+    "include_summaries": true,
+    "timestamp_format": "iso"
+  }
+}

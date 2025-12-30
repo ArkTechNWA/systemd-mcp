@@ -1,0 +1,31 @@
+{
+  "$schema": "../schemas/config.schema.json",
+  "_comment": "Full access configuration - USE WITH CAUTION",
+  "_warning": "This grants full systemd control. You own the consequences.",
+
+  "bypass_permissions": true,
+
+  "neverhang": {
+    "query_timeout": 10000,
+    "action_timeout": 30000,
+    "circuit_breaker": {
+      "failures": 3,
+      "window": 60000,
+      "cooldown": 300000
+    }
+  },
+
+  "fallback": {
+    "enabled": true,
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
+    "api_key_env": "SYSTEMD_MCP_FALLBACK_KEY",
+    "max_context_lines": 200,
+    "max_tokens": 500
+  },
+
+  "output": {
+    "include_summaries": true,
+    "timestamp_format": "iso"
+  }
+}
