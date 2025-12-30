@@ -146,7 +146,7 @@ async function runCommandLegacy(
 
 server.tool(
   "systemd_list_units",
-  "List systemd units with optional filtering",
+  "List services and units",
   {
     type: z
       .enum(["service", "timer", "socket", "mount", "target", "all"])
@@ -211,7 +211,7 @@ server.tool(
 
 server.tool(
   "systemd_unit_status",
-  "Get detailed status of one or more units",
+  "Check unit status",
   {
     units: z
       .union([z.string(), z.array(z.string())])
@@ -456,7 +456,7 @@ server.tool(
 
 server.tool(
   "systemd_cat_unit",
-  "View unit file contents (systemctl cat)",
+  "View unit file contents",
   {
     unit: z.string().describe("Unit name to view"),
   },
@@ -553,7 +553,7 @@ async function getUnitResources(unitName: string): Promise<Record<string, number
 
 server.tool(
   "systemd_unit_resources",
-  "Get current resource usage for a unit (memory, CPU, tasks, I/O)",
+  "Check resource usage (CPU, memory, I/O)",
   {
     unit: z.string().describe("Unit name"),
   },
@@ -618,7 +618,7 @@ server.tool(
 
 server.tool(
   "systemd_sample_resources",
-  "Sample resource usage over time and calculate trends",
+  "Monitor resource trends over time",
   {
     unit: z.string().describe("Unit name"),
     samples: z.number().min(2).max(10).default(5).describe("Number of samples (2-10)"),
@@ -723,7 +723,7 @@ server.tool(
 
 server.tool(
   "systemd_journal_query",
-  "Query journal with filters",
+  "Search logs",
   {
     unit: z
       .union([z.string(), z.array(z.string())])
@@ -780,7 +780,7 @@ server.tool(
 
 server.tool(
   "systemd_journal_tail",
-  "Get recent logs (live tail not supported in MCP)",
+  "Get recent logs",
   {
     unit: z.string().describe("Unit to tail"),
     lines: z.number().optional().describe("Number of lines (default: 50)"),
@@ -875,7 +875,7 @@ server.tool(
 
 server.tool(
   "systemd_start",
-  "Start unit(s) - requires start_stop permission",
+  "Start unit(s)",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to start"),
   },
@@ -913,7 +913,7 @@ server.tool(
 
 server.tool(
   "systemd_stop",
-  "Stop unit(s) - requires start_stop permission",
+  "Stop unit(s)",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to stop"),
   },
@@ -951,7 +951,7 @@ server.tool(
 
 server.tool(
   "systemd_restart",
-  "Restart unit(s) - requires restart permission",
+  "Restart unit(s)",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to restart"),
   },
@@ -989,7 +989,7 @@ server.tool(
 
 server.tool(
   "systemd_reload",
-  "Reload unit configuration (SIGHUP) - requires restart permission",
+  "Reload unit configuration",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to reload"),
   },
@@ -1027,7 +1027,7 @@ server.tool(
 
 server.tool(
   "systemd_enable",
-  "Enable unit for boot - requires enable_disable permission",
+  "Enable unit to start on boot",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to enable"),
     now: z.boolean().optional().describe("Also start the unit now"),
@@ -1067,7 +1067,7 @@ server.tool(
 
 server.tool(
   "systemd_disable",
-  "Disable unit from boot - requires enable_disable permission",
+  "Disable unit from starting on boot",
   {
     units: z.union([z.string(), z.array(z.string())]).describe("Unit(s) to disable"),
     now: z.boolean().optional().describe("Also stop the unit now"),
@@ -1107,7 +1107,7 @@ server.tool(
 
 server.tool(
   "systemd_daemon_reload",
-  "Reload systemd manager - requires daemon_reload permission",
+  "Reload systemd after unit file changes",
   {},
   async () => {
     if (!checkPermission(config, "daemon_reload")) {
@@ -1248,7 +1248,7 @@ server.tool(
 
 server.tool(
   "systemd_health",
-  "Get NEVERHANG health status, circuit breaker state, and historical stats",
+  "Check server health and system responsiveness",
   {},
   async () => {
     const stats = neverhang.getStats();
