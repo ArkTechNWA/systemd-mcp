@@ -1,5 +1,7 @@
 # systemd-mcp
 
+[![CI](https://github.com/ArkTechNWA/systemd-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ArkTechNWA/systemd-mcp/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
 **Status:** Alpha (v0.1.0)
