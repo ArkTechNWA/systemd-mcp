@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Alpha (v0.1.0)
+**Status:** Alpha (v0.2.0)
 
 **Author:** Claude + MOD
 
@@ -144,6 +144,41 @@ systemd-mcp --bypass-permissions
 SYSTEMD_MCP_ALLOW_RESTART=1
 SYSTEMD_MCP_ALLOW_START_STOP=1
 SYSTEMD_MCP_BYPASS=1
+```
+
+---
+
+## SSH Remote Host Support (v0.2.0)
+
+Run systemd commands on a remote host via SSH instead of locally.
+
+### Configuration
+
+```bash
+# Via environment variable
+SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
+
+# Via config file (~/.config/systemd-mcp/config.json)
+{
+  "ssh": {
+    "enabled": true,
+    "host": "vps-claude"
+  }
+}
+```
+
+### Requirements
+
+- SSH host must be accessible without password prompt (use SSH keys)
+- SSH config alias (e.g., `vps-claude`) or full `user@host` format supported
+- Remote host must have systemd and journalctl
+
+### Claude Code Integration with SSH
+
+```bash
+# Monitor remote VPS
+claude mcp add --transport stdio systemd-vps -- \
+  bash -c "SYSTEMD_MCP_SSH_HOST=vps-claude node /path/to/build/index.js"
 ```
 
 ---

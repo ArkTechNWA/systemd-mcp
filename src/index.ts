@@ -27,11 +27,11 @@ const config = loadConfig();
 
 const server = new McpServer({
   name: "systemd-mcp",
-  version: "0.1.0",
+  version: "0.2.0",
 });
 
 // ============================================================================
-// HELPER: Execute systemd commands
+// HELPER: Execute systemd commands (local or via SSH)
 // ============================================================================
 
 interface ExecResult {
@@ -39,12 +39,24 @@ interface ExecResult {
   stderr: string;
 }
 
+/**
+ * Run a command locally or via SSH depending on config.
+ * When SSH is enabled, commands are wrapped with: ssh <host> "<escaped_cmd>"
+ */
 async function runCommand(
   cmd: string,
   timeoutMs: number = config.neverhang.query_timeout
 ): Promise<ExecResult> {
+  let actualCmd = cmd;
+
+  if (config.ssh.enabled && config.ssh.host) {
+    // Escape single quotes for SSH: replace ' with '\''
+    const escapedCmd = cmd.replace(/'/g, "'\\''");
+    actualCmd = `ssh ${config.ssh.host} '${escapedCmd}'`;
+  }
+
   return withTimeout(
-    execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 }),
+    execAsync(actualCmd, { maxBuffer: 10 * 1024 * 1024 }),
     timeoutMs
   );
 }
@@ -897,6 +909,11 @@ async function main() {
   await server.connect(transport);
   console.error("[systemd-mcp] Running on stdio");
   console.error(`[systemd-mcp] Permissions: read=${config.permissions.read}, restart=${config.permissions.restart}, start_stop=${config.permissions.start_stop}`);
+  if (config.ssh.enabled && config.ssh.host) {
+    console.error(`[systemd-mcp] SSH mode: ${config.ssh.host}`);
+  } else {
+    console.error("[systemd-mcp] Mode: local");
+  }
 }
 
 main().catch((error) => {

@@ -27,6 +27,10 @@ export interface Config {
     max_context_lines?: number;
     max_tokens?: number;
   };
+  ssh: {
+    enabled: boolean;
+    host?: string;  // SSH host alias or user@host
+  };
 }
 
 const DEFAULT_BLACKLIST = [
@@ -54,6 +58,9 @@ const DEFAULT_CONFIG: Config = {
     action_timeout: 30000,
   },
   fallback: {
+    enabled: false,
+  },
+  ssh: {
     enabled: false,
   },
 };
@@ -111,6 +118,14 @@ export function loadConfig(): Config {
     config.permissions.daemon_reload = true;
   }
 
+  // SSH host override
+  if (process.env.SYSTEMD_MCP_SSH_HOST) {
+    config.ssh = {
+      enabled: true,
+      host: process.env.SYSTEMD_MCP_SSH_HOST,
+    };
+  }
+
   console.error("[systemd-mcp] Using default config");
   return config;
 }
@@ -133,6 +148,10 @@ function mergeConfig(defaults: Config, overrides: Partial<Config>): Config {
     fallback: {
       ...defaults.fallback,
       ...overrides.fallback,
+    },
+    ssh: {
+      ...defaults.ssh,
+      ...overrides.ssh,
     },
   };
 }

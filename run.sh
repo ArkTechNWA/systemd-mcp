@@ -5,9 +5,10 @@
 #   claude mcp add --transport stdio systemd -- bash /path/to/run.sh
 #
 # Environment variables:
-#   SYSTEMD_MCP_BYPASS=1          - Enable all permissions
-#   SYSTEMD_MCP_ALLOW_RESTART=1   - Enable restart permission
-#   SYSTEMD_MCP_ALLOW_START_STOP=1 - Enable start/stop permission
+#   SYSTEMD_MCP_BYPASS=1            - Enable all permissions
+#   SYSTEMD_MCP_ALLOW_RESTART=1     - Enable restart permission
+#   SYSTEMD_MCP_ALLOW_START_STOP=1  - Enable start/stop permission
+#   SYSTEMD_MCP_SSH_HOST=vps-claude - Run commands on remote host via SSH
 
 # Optional: Load API key for Haiku fallback
 if [ -f ~/.config/systemd-mcp/api-key ]; then

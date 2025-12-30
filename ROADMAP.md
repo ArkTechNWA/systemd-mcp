@@ -1,6 +1,6 @@
 # systemd-mcp Roadmap
 
-## v0.1.0 - Alpha Release ✓
+## v0.1.1 - Alpha Release ✓
 
 All core functionality complete:
 
@@ -12,6 +12,7 @@ All core functionality complete:
 - [x] NEVERHANG timeouts on all operations
 - [x] Haiku AI fallback for diagnosis
 - [x] CI workflow
+- [x] Fixed parsing bugs (failed_units, timers)
 
 ### 16 Tools Implemented
 
@@ -24,9 +25,33 @@ All core functionality complete:
 
 ---
 
+## v0.2.0 - SSH Support ✓
+
+- [x] SSH remote host support
+- [x] `SYSTEMD_MCP_SSH_HOST` environment variable
+- [x] Config file `ssh.host` option
+- [x] Commands wrapped with `ssh <host> '<cmd>'` when enabled
+
+### Usage
+
+```bash
+# Via environment variable
+SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
+
+# Via config file (~/.config/systemd-mcp/config.json)
+{
+  "ssh": {
+    "enabled": true,
+    "host": "vps-claude"
+  }
+}
+```
+
+---
+
 ## Future
 
-### v0.2.0 - Enhancements
+### v0.3.0 - Enhancements
 - [ ] Live log streaming (follow mode)
 - [ ] Unit file viewing
 - [ ] Resource usage trends
@@ -34,10 +59,9 @@ All core functionality complete:
 
 ### v1.0.0 - Production
 - [ ] D-Bus integration (richer data, no subprocess spawning)
-- [ ] Multi-host support (SSH)
 - [ ] Test suite
 - [ ] npm publish (if demand exists)
 
 ---
 
-**Status:** v0.1.0 released, CI passing, ready for use.
+**Status:** v0.2.0 with SSH support, CI passing, ready for use.
