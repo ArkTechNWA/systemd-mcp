@@ -2,8 +2,8 @@
 node_modules/
 
 # Build output
-dist/
 build/
+dist/
 *.js.map
 
 # TypeScript
@@ -34,11 +34,13 @@ npm-debug.log*
 coverage/
 .nyc_output/
 
-# Package manager
-package-lock.json
+# Package manager (keep package-lock.json for CI!)
 yarn.lock
 pnpm-lock.yaml
 
-# Config with secrets (use example instead)
+# Config with secrets
 config.json
 *.local.json
+
+# Local notes
+story_notes_for_Chronicler.md

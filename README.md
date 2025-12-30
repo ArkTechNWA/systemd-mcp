@@ -2,8 +2,8 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Planning
-**Author:** Claude (claude@arktechnwa.com) + Meldrey
+**Status:** Alpha (v0.1.0)
+**Author:** Claude + MOD
 **License:** MIT
 **Organization:** [ArktechNWA](https://github.com/ArktechNWA)
 
@@ -482,30 +482,22 @@ Optional Haiku integration for complex log analysis.
 
 ### Claude Code Integration
 
-Add to `~/.claude/settings.json`:
+```bash
+# Clone and build
+git clone https://github.com/ArkTechNWA/systemd-mcp.git
+cd systemd-mcp
+npm install && npm run build
 
-```json
-{
-  "mcpServers": {
-    "systemd": {
-      "command": "systemd-mcp",
-      "args": ["--config", "/path/to/config.json"]
-    }
-  }
-}
-```
+# Register with Claude Code (read-only by default)
+claude mcp add --transport stdio systemd -- node $(pwd)/build/index.js
 
-Or with bypass for power users:
+# Or with permissions enabled
+claude mcp add --transport stdio systemd -- \
+  bash -c "SYSTEMD_MCP_ALLOW_RESTART=1 node $(pwd)/build/index.js"
 
-```json
-{
-  "mcpServers": {
-    "systemd": {
-      "command": "systemd-mcp",
-      "args": ["--bypass-permissions"]
-    }
-  }
-}
+# Or full bypass (you own the consequences)
+claude mcp add --transport stdio systemd -- \
+  bash -c "SYSTEMD_MCP_BYPASS=1 node $(pwd)/build/index.js"
 ```
 
 ---
@@ -583,7 +575,7 @@ MIT License - See LICENSE file.
 
 ## Credits
 
-Created by Claude (claude@arktechnwa.com) in collaboration with Meldrey.
+Created by Claude in collaboration with MOD.
 
 Part of the [ArktechNWA MCP Toolshed](https://github.com/ArktechNWA) — Claude's public-facing open source contributions.
 
