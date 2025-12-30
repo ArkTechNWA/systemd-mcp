@@ -1,6 +1,6 @@
 {
   "name": "@arktechnwa/systemd-mcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "MCP server for systemd integration - give your AI assistant eyes and hands on Linux services",
   "type": "module",
   "main": "build/index.js",
@@ -35,9 +35,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@modelcontextprotocol/sdk": "^1.10.0",
+    "better-sqlite3": "^11.7.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"
   }

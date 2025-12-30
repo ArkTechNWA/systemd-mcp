@@ -16,6 +16,14 @@ import { loadConfig, type Config } from "./config.js";
 import { checkPermission, checkUnitAccess } from "./permissions.js";
 import { withTimeout, parseSystemctlShow, formatUptime } from "./utils.js";
 import { isHaikuEnabled, diagnoseWithHaiku } from "./haiku.js";
+import { initDatabase, closeDatabase } from "./db.js";
+import {
+  NeverhangManager,
+  NeverhangError,
+  classifyCommand,
+  type CommandCategory,
+  type FailureType,
+} from "./neverhang.js";
 
 const execAsync = promisify(exec);
 
@@ -25,13 +33,24 @@ const execAsync = promisify(exec);
 
 const config = loadConfig();
 
+// Initialize A.L.A.N. database and NEVERHANG manager
+const db = initDatabase();
+const neverhang = new NeverhangManager(config.neverhang, db, async () => {
+  // Ping function: fast, lightweight command that proves connectivity
+  const pingCmd = config.ssh.enabled && config.ssh.host
+    ? `ssh ${config.ssh.host} 'systemctl --version'`
+    : "systemctl --version";
+  await withTimeout(execAsync(pingCmd), config.neverhang.health_check_timeout_ms);
+});
+neverhang.start();
+
 const server = new McpServer({
   name: "systemd-mcp",
-  version: "0.4.1",
+  version: "0.5.0",
 });
 
 // ============================================================================
-// HELPER: Execute systemd commands (local or via SSH)
+// HELPER: Execute systemd commands (local or via SSH) with NEVERHANG
 // ============================================================================
 
 interface ExecResult {
@@ -40,25 +59,85 @@ interface ExecResult {
 }
 
 /**
+ * Classify error into NEVERHANG failure types
+ */
+function classifyError(error: unknown, timeoutMs: number): FailureType {
+  const msg = error instanceof Error ? error.message : String(error);
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "timeout";
+  }
+  if (lower.includes("connection refused") || lower.includes("no route to host")) {
+    return "connection_failed";
+  }
+  if (lower.includes("permission denied") || lower.includes("host key verification failed")) {
+    return "auth_failed";
+  }
+  if (lower.includes("permission denied")) {
+    return "permission_denied";
+  }
+  return "command_error";
+}
+
+/**
  * Run a command locally or via SSH depending on config.
- * When SSH is enabled, commands are wrapped with: ssh <host> "<escaped_cmd>"
+ * Integrated with NEVERHANG v2.0 for reliability.
  */
 async function runCommand(
   cmd: string,
-  timeoutMs: number = config.neverhang.query_timeout
+  category: CommandCategory = "query",
+  toolName: string = "unknown"
 ): Promise<ExecResult> {
-  let actualCmd = cmd;
+  // Circuit breaker check
+  const canExec = neverhang.canExecute();
+  if (!canExec.allowed) {
+    throw new NeverhangError("circuit_open", canExec.reason!, 0);
+  }
 
+  // Get adaptive timeout
+  const { timeout_ms, reason } = neverhang.getTimeout(category);
+
+  let actualCmd = cmd;
   if (config.ssh.enabled && config.ssh.host) {
     // Escape single quotes for SSH: replace ' with '\''
     const escapedCmd = cmd.replace(/'/g, "'\\''");
     actualCmd = `ssh ${config.ssh.host} '${escapedCmd}'`;
   }
 
-  return withTimeout(
-    execAsync(actualCmd, { maxBuffer: 10 * 1024 * 1024 }),
-    timeoutMs
-  );
+  const startTime = Date.now();
+  try {
+    const result = await withTimeout(
+      execAsync(actualCmd, { maxBuffer: 10 * 1024 * 1024 }),
+      timeout_ms
+    );
+    const duration = Date.now() - startTime;
+    neverhang.recordSuccess(toolName, category, duration);
+    return result;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const errorType = classifyError(error, timeout_ms);
+    neverhang.recordFailure(toolName, category, duration, errorType);
+
+    // Wrap in NeverhangError with actionable info
+    throw new NeverhangError(
+      errorType,
+      error instanceof Error ? error.message : String(error),
+      duration,
+      { cause: error instanceof Error ? error : undefined }
+    );
+  }
+}
+
+/**
+ * Legacy runCommand signature for backward compatibility
+ * TODO: Migrate all callers to new signature
+ */
+async function runCommandLegacy(
+  cmd: string,
+  timeoutMs?: number
+): Promise<ExecResult> {
+  return runCommand(cmd, "query", "legacy");
 }
 
 // ============================================================================
@@ -817,7 +896,7 @@ server.tool(
       }
 
       try {
-        await runCommand(`systemctl start ${unitName}`, config.neverhang.action_timeout);
+        await runCommand(`systemctl start ${unitName}`, "action", "systemd_start");
         results.push({ unit: unitName, success: true, action: "started" });
       } catch (error) {
         results.push({
@@ -855,7 +934,7 @@ server.tool(
       }
 
       try {
-        await runCommand(`systemctl stop ${unitName}`, config.neverhang.action_timeout);
+        await runCommand(`systemctl stop ${unitName}`, "action", "systemd_stop");
         results.push({ unit: unitName, success: true, action: "stopped" });
       } catch (error) {
         results.push({
@@ -893,7 +972,7 @@ server.tool(
       }
 
       try {
-        await runCommand(`systemctl restart ${unitName}`, config.neverhang.action_timeout);
+        await runCommand(`systemctl restart ${unitName}`, "action", "systemd_restart");
         results.push({ unit: unitName, success: true, action: "restarted" });
       } catch (error) {
         results.push({
@@ -931,7 +1010,7 @@ server.tool(
       }
 
       try {
-        await runCommand(`systemctl reload ${unitName}`, config.neverhang.action_timeout);
+        await runCommand(`systemctl reload ${unitName}`, "action", "systemd_reload");
         results.push({ unit: unitName, success: true, action: "reloaded" });
       } catch (error) {
         results.push({
@@ -971,7 +1050,7 @@ server.tool(
 
       try {
         const cmd = now ? `systemctl enable --now ${unitName}` : `systemctl enable ${unitName}`;
-        await runCommand(cmd, config.neverhang.action_timeout);
+        await runCommand(cmd, "action", "systemd_enable");
         results.push({ unit: unitName, success: true, action: now ? "enabled+started" : "enabled" });
       } catch (error) {
         results.push({
@@ -1011,7 +1090,7 @@ server.tool(
 
       try {
         const cmd = now ? `systemctl disable --now ${unitName}` : `systemctl disable ${unitName}`;
-        await runCommand(cmd, config.neverhang.action_timeout);
+        await runCommand(cmd, "action", "systemd_disable");
         results.push({ unit: unitName, success: true, action: now ? "disabled+stopped" : "disabled" });
       } catch (error) {
         results.push({
@@ -1036,7 +1115,7 @@ server.tool(
     }
 
     try {
-      await runCommand("systemctl daemon-reload", config.neverhang.action_timeout);
+      await runCommand("systemctl daemon-reload", "heavy", "systemd_daemon_reload");
       return {
         content: [
           {
@@ -1164,6 +1243,56 @@ server.tool(
 );
 
 // ============================================================================
+// TOOLS: NEVERHANG Health Endpoint
+// ============================================================================
+
+server.tool(
+  "systemd_health",
+  "Get NEVERHANG health status, circuit breaker state, and historical stats",
+  {},
+  async () => {
+    const stats = neverhang.getStats();
+    const dbStats = neverhang.getDatabaseStats();
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              // Real-time status
+              status: stats.status,
+              circuit: stats.circuit,
+              circuit_opens_in: stats.circuit_opens_in
+                ? `${Math.ceil(stats.circuit_opens_in / 1000)}s`
+                : null,
+              latency_ms: stats.latency_ms,
+              latency_p95_ms: stats.latency_p95_ms,
+              recent_failures: stats.recent_failures,
+
+              // A.L.A.N. database stats (historical)
+              history: {
+                commands_24h: dbStats.commands_24h,
+                success_rate_24h: `${(dbStats.success_rate_24h * 100).toFixed(1)}%`,
+                avg_latency_by_category: dbStats.avg_latency_by_category,
+                health_trend: dbStats.health_trend,
+              },
+
+              // Connection info
+              ssh_enabled: config.ssh.enabled,
+              ssh_host: config.ssh.host || null,
+              uptime_percent: neverhang.getUptimePercent(),
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+);
+
+// ============================================================================
 // SERVER STARTUP
 // ============================================================================
 
@@ -1171,6 +1300,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("[systemd-mcp] Running on stdio");
+  console.error(`[systemd-mcp] NEVERHANG v2.0 active (A.L.A.N. database initialized)`);
   console.error(`[systemd-mcp] Permissions: read=${config.permissions.read}, restart=${config.permissions.restart}, start_stop=${config.permissions.start_stop}`);
   if (config.ssh.enabled && config.ssh.host) {
     console.error(`[systemd-mcp] SSH mode: ${config.ssh.host}`);
@@ -1179,7 +1309,20 @@ async function main() {
   }
 }
 
+// Graceful shutdown
+function shutdown() {
+  console.error("[systemd-mcp] Shutting down...");
+  neverhang.stop();
+  closeDatabase(db);
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
 main().catch((error) => {
   console.error("[systemd-mcp] Fatal error:", error);
+  neverhang.stop();
+  closeDatabase(db);
   process.exit(1);
 });

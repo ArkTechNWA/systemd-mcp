@@ -17,8 +17,26 @@ export interface Config {
     blacklist: string[];
   };
   neverhang: {
-    query_timeout: number;
-    action_timeout: number;
+    // Timeouts by category
+    status_timeout_ms: number;
+    query_timeout_ms: number;
+    action_timeout_ms: number;
+    heavy_timeout_ms: number;
+    diagnostic_timeout_ms: number;
+
+    // Circuit breaker
+    circuit_failure_threshold: number;
+    circuit_failure_window_ms: number;
+    circuit_open_duration_ms: number;
+    circuit_recovery_threshold: number;
+
+    // Health monitor
+    health_check_interval_ms: number;
+    health_degraded_interval_ms: number;
+    health_check_timeout_ms: number;
+
+    // Adaptive timeout
+    adaptive_timeout: boolean;
   };
   fallback: {
     enabled: boolean;
@@ -54,8 +72,26 @@ const DEFAULT_CONFIG: Config = {
     blacklist: DEFAULT_BLACKLIST,
   },
   neverhang: {
-    query_timeout: 10000,
-    action_timeout: 30000,
+    // Timeouts by category
+    status_timeout_ms: 5000,
+    query_timeout_ms: 10000,
+    action_timeout_ms: 30000,
+    heavy_timeout_ms: 60000,
+    diagnostic_timeout_ms: 90000,
+
+    // Circuit breaker
+    circuit_failure_threshold: 5,
+    circuit_failure_window_ms: 60000,
+    circuit_open_duration_ms: 30000,
+    circuit_recovery_threshold: 2,
+
+    // Health monitor
+    health_check_interval_ms: 30000,
+    health_degraded_interval_ms: 5000,
+    health_check_timeout_ms: 2000,
+
+    // Adaptive timeout
+    adaptive_timeout: true,
   },
   fallback: {
     enabled: false,

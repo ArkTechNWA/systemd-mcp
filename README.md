@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** Alpha (v0.4.1)
+**Status:** v0.5.0 (NEVERHANG v2.0)
 
 **Author:** Claude + MOD
 
@@ -26,7 +26,7 @@ systemd-mcp changes that. Safely.
 
 1. **Safety by default** — Read-only out of the box
 2. **User controls exposure** — Whitelist, blacklist, permission levels
-3. **Never hang** — Timeouts, streaming, circuit breakers
+3. **NEVERHANG v2.0** — Circuit breaker, adaptive timeouts, A.L.A.N. database, self-healing
 4. **Graceful fallback** — Optional Haiku AI for log analysis
 5. **Structured output** — JSON for machines, summaries for AI
 
@@ -506,47 +506,223 @@ Returns:
 }
 ```
 
----
+### Health & Resilience
 
-## NEVERHANG Architecture
+#### `systemd_health`
+Get NEVERHANG v2.0 health status, circuit breaker state, and A.L.A.N. database stats.
 
-Every systemd command can hang. `systemctl status` on a wedged service waits forever. `journalctl -f` never returns.
+```typescript
+systemd_health()
+```
 
-**NEVERHANG guarantees:**
-
-### Timeouts
-- Query operations: 10s default
-- Action operations: 30s default
-- Configurable per-operation
-
-### Streaming
-- Long log queries return chunks
-- Journal tail streams lines
-- Client can cancel anytime
-
-### Process Management
-- All subprocesses tracked
-- Hung processes killed after timeout
-- Zombie cleanup
-
-### Circuit Breaker
-- 3 failures in 60s → 5 minute cooldown
-- Prevents cascade failures
-- Auto-reset on success
-
+Returns:
 ```json
 {
-  "neverhang": {
-    "query_timeout": 10000,
-    "action_timeout": 30000,
-    "circuit_breaker": {
-      "failures": 3,
-      "window": 60000,
-      "cooldown": 300000
+  "status": "healthy",
+  "circuit_breaker": {
+    "state": "closed",
+    "failures": 0,
+    "last_failure": null,
+    "opened_at": null
+  },
+  "health_monitor": {
+    "consecutive_failures": 0,
+    "last_check": "2025-12-30T10:15:00Z",
+    "degraded": false
+  },
+  "database": {
+    "path": "/home/user/.cache/systemd-mcp/systemd-mcp.db",
+    "command_history_count": 1247,
+    "health_check_count": 86,
+    "oldest_command": "2025-12-23T14:30:00Z"
+  },
+  "config": {
+    "ssh_enabled": false,
+    "adaptive_timeout": true,
+    "timeouts": {
+      "status": 5000,
+      "query": 10000,
+      "action": 30000,
+      "heavy": 60000,
+      "diagnostic": 90000
     }
   }
 }
 ```
+
+---
+
+## NEVERHANG v2.0 Architecture
+
+Every systemd command can hang. `systemctl status` on a wedged service waits forever. `journalctl -f` never returns.
+
+**NEVERHANG v2.0 guarantees your MCP server stays responsive.** No command hangs forever. System health is monitored. Failures are classified and handled intelligently.
+
+### Category-Based Timeouts
+
+Commands are classified by expected duration:
+
+| Category | Timeout | Examples |
+|----------|---------|----------|
+| `status` | 5s | `systemctl status`, `systemctl is-active` |
+| `query` | 10s | `journalctl` queries, `systemctl list-units` |
+| `action` | 30s | `start`, `stop`, `restart`, `enable`, `disable` |
+| `heavy` | 60s | Boot analysis, log streaming |
+| `diagnostic` | 90s | AI-powered diagnosis with log synthesis |
+
+### A.L.A.N. Database
+
+**As Long As Necessary** — SQLite database for persistent state across restarts.
+
+```
+~/.cache/systemd-mcp/systemd-mcp.db
+```
+
+**What it stores:**
+- **Circuit breaker state** — Survives restarts, tracks open/closed/half-open state
+- **Command history** — 7 days of execution records (success, failure, latency)
+- **Health checks** — 24 hours of background ping results
+- **P95 latency** — Per-command performance metrics for adaptive timeout
+
+**Automatic cleanup:** Old records pruned on startup (7d commands, 24h health checks).
+
+### Circuit Breaker
+
+Protects against cascade failures when systemd is unresponsive.
+
+| State | Behavior |
+|-------|----------|
+| **Closed** | Normal operation |
+| **Open** | Commands blocked, returns immediately with `CIRCUIT_OPEN` |
+| **Half-Open** | Testing recovery with limited requests |
+
+**Configuration:**
+- 5 failures in 60s → Circuit opens
+- Open duration: 30s
+- Recovery threshold: 2 successes to close
+
+**Persistence:** State survives server restarts via A.L.A.N. database.
+
+### Health Monitor
+
+Background thread monitors systemd health independently.
+
+- **Healthy:** Check every 30s
+- **Degraded:** Check every 5s (more aggressive)
+- **Ping command:** `systemctl --version` (minimal overhead)
+- **SSH support:** Uses SSH host when configured
+
+### Adaptive Timeout
+
+When enabled, adjusts timeouts based on observed latency:
+
+```
+adjusted_timeout = max(base_timeout, P95_latency * 2)
+```
+
+Uses last 100 executions of each command category from A.L.A.N. database.
+
+### Failure Taxonomy
+
+Every failure is classified for intelligent error handling:
+
+| Type | Description |
+|------|-------------|
+| `timeout` | Command exceeded time limit |
+| `connection_failed` | SSH connection failed (remote mode) |
+| `auth_failed` | Permission denied |
+| `circuit_open` | Circuit breaker is open |
+| `command_error` | Non-zero exit code |
+| `permission_denied` | Unit blacklisted or permission level insufficient |
+| `cancelled` | Operation cancelled by client |
+
+### Process Management
+
+- All subprocesses tracked with PIDs
+- Hung processes killed after timeout
+- Zombie cleanup on shutdown
+- Graceful shutdown handlers (SIGINT, SIGTERM)
+
+### Configuration
+
+```json
+{
+  "neverhang": {
+    "status_timeout_ms": 5000,
+    "query_timeout_ms": 10000,
+    "action_timeout_ms": 30000,
+    "heavy_timeout_ms": 60000,
+    "diagnostic_timeout_ms": 90000,
+
+    "circuit_failure_threshold": 5,
+    "circuit_failure_window_ms": 60000,
+    "circuit_open_duration_ms": 30000,
+    "circuit_recovery_threshold": 2,
+
+    "health_check_interval_ms": 30000,
+    "health_degraded_interval_ms": 5000,
+    "health_check_timeout_ms": 2000,
+
+    "adaptive_timeout": true
+  }
+}
+```
+
+### Why This Architecture?
+
+MCP servers are single-threaded JSON-RPC handlers. When Claude calls `systemctl status` on a wedged service, the entire connection blocks. Claude waits. The user sees nothing. Eventually something times out at a higher layer and the interaction is ruined.
+
+NEVERHANG v1 solved the immediate problem: timeouts. But it was **stateless** - every invocation started fresh with no memory of what happened before.
+
+**A.L.A.N. transforms reactive timeouts into operational intelligence.**
+
+Without persistence:
+- Server restarts → circuit resets → retries broken systemd → fails again
+- Every timeout is static, regardless of actual system behavior
+- No visibility into patterns or trends
+
+With A.L.A.N.:
+- Circuit state survives restarts (we don't re-learn through failure)
+- P95 latency per category enables adaptive timeouts
+- Health trends reveal patterns invisible to stateless systems
+- Success rates become diagnostic signals, not just individual outcomes
+
+### Emergent Behaviors
+
+When circuit breaker + adaptive timeout + health monitoring + persistence combine:
+
+**Self-Healing with Memory**
+- Gradual recovery through half-open state testing
+- Pattern recognition (recurring vs. one-off failures)
+- Adaptive thresholds based on historical success rates
+
+**Intelligent Degradation**
+- Health monitor shifts 30s → 5s intervals when degraded
+- Persists across restarts—server doesn't start naive
+- Latency trends visible for root cause analysis
+
+**Operational Visibility for AI**
+
+Claude doesn't have intuition about "the system feels sluggish." Claude operates on data:
+
+| Signal | What Claude Can Do |
+|--------|-------------------|
+| Circuit open | Don't retry, explain to user |
+| P95 jumped 50ms → 2000ms | Something changed, investigate |
+| Success rate dropped to 70% | Pattern, not fluke—dig deeper |
+| Health trend degrading | Proactive warning before failure |
+
+### What "Fully Functioning" Looks Like
+
+| Scenario | System Behavior |
+|----------|----------------|
+| **Normal** | Commands execute, latency tracked, circuit closed |
+| **Transient failure** | Recorded, circuit tracks but stays closed, next attempt proceeds |
+| **Systemic failure** | Circuit opens → commands return `CIRCUIT_OPEN` immediately → health monitor increases frequency → auto-recovery when systemd responds |
+| **Degraded performance** | Adaptive timeout adjusts, commands complete, health endpoint shows degradation |
+| **Post-restart** | Reads state from A.L.A.N., doesn't start naive, degradation patterns preserved |
+
+This is the difference between a tool and an intelligent subsystem. A.L.A.N. is the memory that makes NEVERHANG wise instead of just cautious.
 
 ---
 
@@ -601,15 +777,22 @@ Optional Haiku integration for complex log analysis.
     ]
   },
   "neverhang": {
-    "query_timeout": 10000,
-    "action_timeout": 30000
+    "status_timeout_ms": 5000,
+    "query_timeout_ms": 10000,
+    "action_timeout_ms": 30000,
+    "heavy_timeout_ms": 60000,
+    "diagnostic_timeout_ms": 90000,
+    "circuit_failure_threshold": 5,
+    "circuit_failure_window_ms": 60000,
+    "circuit_open_duration_ms": 30000,
+    "circuit_recovery_threshold": 2,
+    "health_check_interval_ms": 30000,
+    "health_degraded_interval_ms": 5000,
+    "health_check_timeout_ms": 2000,
+    "adaptive_timeout": true
   },
   "fallback": {
     "enabled": false
-  },
-  "output": {
-    "include_summaries": true,
-    "timestamp_format": "iso"
   }
 }
 ```
