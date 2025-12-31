@@ -74,10 +74,40 @@ function classifyError(error: unknown, timeoutMs: number): FailureType {
   if (lower.includes("permission denied") || lower.includes("host key verification failed")) {
     return "auth_failed";
   }
-  if (lower.includes("permission denied")) {
+  if (lower.includes("permission denied") || lower.includes("insufficient permissions")) {
     return "permission_denied";
   }
   return "command_error";
+}
+
+/**
+ * Get actionable suggestions for common errors
+ */
+function getErrorSuggestion(error: unknown): string | null {
+  const msg = error instanceof Error ? error.message : String(error);
+
+  // Journal permission errors
+  if (msg.includes("No journal files were opened") ||
+      (msg.includes("journal") && msg.includes("insufficient permissions"))) {
+    return "FIX: Add user to systemd-journal group: sudo usermod -aG systemd-journal $USER (then reconnect SSH)";
+  }
+
+  // SSH key issues
+  if (msg.includes("Host key verification failed")) {
+    return "FIX: Accept host key with: ssh-keyscan -H <host> >> ~/.ssh/known_hosts";
+  }
+
+  // Permission denied for systemctl
+  if (msg.includes("Permission denied") && msg.includes("systemctl")) {
+    return "FIX: User needs polkit/sudo access for systemctl commands";
+  }
+
+  // Connection refused
+  if (msg.includes("Connection refused")) {
+    return "FIX: Check if SSH daemon is running on target host";
+  }
+
+  return null;
 }
 
 /**
@@ -119,10 +149,15 @@ async function runCommand(
     const errorType = classifyError(error, timeout_ms);
     neverhang.recordFailure(toolName, category, duration, errorType);
 
+    // Build error message with actionable suggestion if available
+    const baseMsg = error instanceof Error ? error.message : String(error);
+    const suggestion = getErrorSuggestion(error);
+    const fullMsg = suggestion ? `${baseMsg}\n\n${suggestion}` : baseMsg;
+
     // Wrap in NeverhangError with actionable info
     throw new NeverhangError(
       errorType,
-      error instanceof Error ? error.message : String(error),
+      fullMsg,
       duration,
       { cause: error instanceof Error ? error : undefined }
     );
