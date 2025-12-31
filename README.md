@@ -168,13 +168,13 @@ Run systemd commands on a remote host via SSH instead of locally.
 
 ```bash
 # Via environment variable
-SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
+SYSTEMD_MCP_SSH_HOST=my-host node build/index.js
 
 # Via config file (~/.config/systemd-mcp/config.json)
 {
   "ssh": {
     "enabled": true,
-    "host": "vps-claude"
+    "host": "my-host"
   }
 }
 ```
@@ -182,7 +182,7 @@ SYSTEMD_MCP_SSH_HOST=vps-claude node build/index.js
 ### Requirements
 
 - SSH host must be accessible without password prompt (use SSH keys)
-- SSH config alias (e.g., `vps-claude`) or full `user@host` format supported
+- SSH config alias (e.g., `my-host`) or full `user@host` format supported
 - Remote host must have systemd and journalctl
 
 ### Claude Code Integration with SSH
