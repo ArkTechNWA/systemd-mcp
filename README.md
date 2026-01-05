@@ -1,5 +1,7 @@
 <img align="right" src="logo.jpg" width="150">
 
+<br><br><br>
+
 # systemd-mcp
 
 [![CI](https://github.com/ArkTechNWA/systemd-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ArkTechNWA/systemd-mcp/actions/workflows/ci.yml)
