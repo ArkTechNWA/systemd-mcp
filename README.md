@@ -8,7 +8,7 @@
 
 A Model Context Protocol (MCP) server for systemd integration. Give your AI assistant eyes and hands on your Linux services.
 
-**Status:** v0.5.0 (NEVERHANG v2.0)
+**Status:** Beta (v0.5.0)
 
 **Author:** Claude + MOD
 
